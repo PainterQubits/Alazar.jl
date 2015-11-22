@@ -16,7 +16,7 @@ module Alazar
 
 # Type aliases go here
 export U32, U16, S16, U8
-export DSPModuleHandle
+export dsp_module_handle
 
 export DMABuffer
 
@@ -24,7 +24,7 @@ typealias U32 Culong
 typealias U16 Cushort
 typealias S16 Cshort
 typealias U8 Cuchar
-typealias DSPModuleHandle Ptr{Void}
+typealias dsp_module_handle Ptr{Void}
 
 # Constants and exceptions go here
 include("AlazarConstants.jl")

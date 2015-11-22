@@ -4,13 +4,13 @@ export AlazarDSPAbortCapture, AlazarFFTSetWindowFunction
 export AlazarFFTVerificationMode, AlazarFFTSetup
 
 AlazarDSPNumModules(handle::U32) = ccall((:AlazarDSPGetModules,ats), U32,
-    (U32, U32, Ptr{DSPModuleHandle}, Ptr{U32}), handle, 0, C_NULL, numModules)
+    (U32, U32, Ptr{dsp_module_handle}, Ptr{U32}), handle, 0, C_NULL, numModules)
 
 AlazarDSPGetModuleHandles(handle::U32) = ccall((:AlazarDSPGetModules,ats), U32,
-    (U32,U32,Ptr{DSPModuleHandle},Ptr{U32}), handle, numModules, modules, C_NULL)
+    (U32,U32,Ptr{dsp_module_handle},Ptr{U32}), handle, numModules, modules, C_NULL)
 
-AlazarDSPGetInfo(handle::DSPModuleHandle) = ccall((:AlazarDSPGetInfo,ats), U32,
-    (DSPModuleHandle,Ptr{U32},Ptr{U16},Ptr{U16},Ptr{U32},Ptr{U32},Ptr{U32}),
+AlazarDSPGetInfo(handle::dsp_module_handle) = ccall((:AlazarDSPGetInfo,ats), U32,
+    (dsp_module_handle,Ptr{U32},Ptr{U16},Ptr{U16},Ptr{U32},Ptr{U32},Ptr{U32}),
     handle, dspModuleId, versionMajor, versionMinor, maxLength, C_NULL, C_NULL)
 
 AlazarDSPGenerateWindowFunction(windowType, window,
@@ -19,24 +19,24 @@ AlazarDSPGenerateWindowFunction(windowType, window,
         (U32, Ptr{Cfloat}, U32, U32), windowType, window,
         windowLength_samples, paddingLength_samples)
 
-AlazarFFTSetWindowFunction(handle::DSPModuleHandle,
+AlazarFFTSetWindowFunction(handle::dsp_module_handle,
         samplesPerRecord, reArray, imArray) =
     ccall((:AlazarFFTSetWindowFunction,ats), U32,
-        (DSPModuleHandle, U32, Ptr{Cfloat}, Ptr{Cfloat}),
+        (dsp_module_handle, U32, Ptr{Cfloat}, Ptr{Cfloat}),
         handle, samplesPerRecord, reArray, imArray)
 
 # Undocumented in API.
-AlazarFFTVerificationMode(dspModule::DSPModule, enable,
+AlazarFFTVerificationMode(handle::dsp_module_handle, enable,
         reArray, imArray, recordLength_samples) =
     ccall((:AlazarFFTVerificationMode,ats), U32,
-        (DSPModuleHandle, Bool, Ptr{S16}, Ptr{S16}, Csize_t),
-        dspModule.handle, enable, reArray, imArray, recordLength_samples)
+        (dsp_module_handle, Bool, Ptr{S16}, Ptr{S16}, Csize_t),
+        handle, enable, reArray, imArray, recordLength_samples)
 
-AlazarFFTSetup(dspModule::DSPModule, channel, recordLength_samples, fftLength_samples,
+AlazarFFTSetup(handle::dsp_module_handle, channel, recordLength_samples, fftLength_samples,
         outputFormat, reserved, footer, bytesPerOutputRecord) =
     ccall((:AlazarFFTSetup,ats), U32,
-        (DSPModuleHandle, U16, U32, U32, U32, U32, U32, Ptr{U32}),
-        dspModule.handle, CHANNEL_A, recordLength_samples, fftLength_samples,
+        (dsp_module_handle, U16, U32, U32, U32, U32, U32, Ptr{U32}),
+        handle, CHANNEL_A, recordLength_samples, fftLength_samples,
         outputFormat, footer, reserved, bytesPerOutputRecord)
 
 AlazarDSPGetBuffer(handle::U32, buffer, timeout_ms) =
