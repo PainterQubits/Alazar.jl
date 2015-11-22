@@ -128,8 +128,8 @@ export AlazarInputControl, AlazarNumOfSystems, AlazarPostAsyncBuffer, AlazarRead
 export AlazarReadEx, AlazarResetTimeStamp, AlazarSetBWLimit
 export AlazarSetCaptureClock, AlazarSetExternalClockLevel, AlazarSetExternalTrigger
 export AlazarSetLED, AlazarSetParameter, AlazarSetParameterUL, AlazarSetRecordCount
-export AlazarSetRecordSize, AlazarSetTriggerDelaySamples, AlazarSetTriggerOperation
-export AlazarSetTriggerTimeout, AlazarSetTriggerTimeoutTicks, AlazarSleepDevice
+export AlazarSetRecordSize, AlazarSetTriggerDelay, AlazarSetTriggerOperation
+export AlazarSetTriggerTimeOut, AlazarSetTriggerTimeoutTicks, AlazarSleepDevice
 export AlazarStartCapture, AlazarTriggered, AlazarWaitAsyncBufferComplete
 
 AlazarAbortAsyncRead(handle::U32) =
@@ -227,7 +227,7 @@ AlazarSetRecordSize(handle::U32, preTriggerSamples, postTriggerSamples) =
     ccall((:AlazarSetRecordSize,ats), U32, (U32, U32, U32),
         handle, preTriggerSamples, postTriggerSamples)
 
-AlazarSetTriggerDelaySamples(handle::U32, delay_samples) =
+AlazarSetTriggerDelay(handle::U32, delay_samples) =
     ccall((:AlazarSetTriggerDelay,ats),U32,(U32,U32),handle, delay_samples)
 
 AlazarSetTriggerOperation(handle::U32, operation,
@@ -237,7 +237,7 @@ AlazarSetTriggerOperation(handle::U32, operation,
         handle, operation, engine1, source1, slope1, level1,
         engine2, source2, slope2, level2)
 
-AlazarSetTriggerTimeoutTicks(handle::U32, timeout_clocks) =
+AlazarSetTriggerTimeOut(handle::U32, timeout_clocks) =
     ccall((:AlazarSetTriggerTimeOut,ats), U32, (U32, U32), handle, timeout_clocks)
 
 AlazarSleepDevice(handle::U32, sleepState) =
