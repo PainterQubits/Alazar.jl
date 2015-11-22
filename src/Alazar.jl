@@ -7,7 +7,7 @@ API. All the exported methods directly map to underlying C
 functions. Please see the ATS-SDK Guide for detailed specification of
 these functions.
 
-Types
+For convenience we define a Julia type for allocating a buffer:
 
 DMABuffer: Holds a memory buffer suitable for data transfer with digitizers.
 """
@@ -17,8 +17,8 @@ module Alazar
 # Type aliases go here
 export U32, U16, S16, U8
 export dsp_module_handle
-
 export DMABuffer
+export ats, libc
 
 typealias U32 Culong
 typealias U16 Cushort
@@ -166,7 +166,7 @@ AlazarForceTrigger(handle::U32) =
 AlazarForceTriggerEnable(handle::U32) =
     ccall((:AlazarForceTriggerEnable,ats),U32,(U32,),handle)
 
-AlazarGetChannelInfo(handle::U32) =
+AlazarGetChannelInfo(handle::U32,memorySize_samples, bitsPerSample) =
     ccall((:AlazarGetChannelInfo,ats), U32, (U32, Ptr{U32}, Ptr{U8}),
         handle, memorySize_samples, bitsPerSample)
 
