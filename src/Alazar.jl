@@ -5,13 +5,9 @@ Adapted from the C and Python APIs by Andrew Keller (andrew.keller.09@gmail.com)
 This module provides a thin wrapper on top of the AlazarTech C
 API. All the exported methods directly map to underlying C
 functions. Please see the ATS-SDK Guide for detailed specification of
-these functions. In addition, this module provides a few classes for
-convenience.
+these functions.
 
 Types
-
-InstrumentAlazar: Represents a digitizer. Abstract type.
-AlazarATS9360: Concrete type.
 
 DMABuffer: Holds a memory buffer suitable for data transfer with digitizers.
 """
