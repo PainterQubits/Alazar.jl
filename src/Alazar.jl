@@ -123,7 +123,8 @@ include("AlazarErrors.jl")
 export AlazarAbortAsyncRead, AlazarAbortCapture, AlazarBeforeAsyncRead
 export AlazarBoardsInSystemBySystemID, AlazarBusy, AlazarConfigureAuxIO
 export AlazarConfigureLSB, AlazarConfigureRecordAverage, AlazarForceTrigger
-export AlazarForceTriggerEnable, AlazarGetChannelInfo, AlazarGetChannelInfo_unsafe
+export AlazarForceTriggerEnable, AlazarGetChannelInfo, AlazarGetParameter,
+export AlazarGetParameterUL
 export AlazarInputControl, AlazarNumOfSystems, AlazarPostAsyncBuffer, AlazarRead
 export AlazarReadEx, AlazarResetTimeStamp, AlazarSetBWLimit
 export AlazarSetCaptureClock, AlazarSetExternalClockLevel, AlazarSetExternalTrigger
@@ -166,9 +167,17 @@ AlazarForceTrigger(handle::U32) =
 AlazarForceTriggerEnable(handle::U32) =
     ccall((:AlazarForceTriggerEnable,ats),U32,(U32,),handle)
 
-AlazarGetChannelInfo(handle::U32,memorySize_samples, bitsPerSample) =
+AlazarGetChannelInfo(handle::U32, memorySize_samples, bitsPerSample) =
     ccall((:AlazarGetChannelInfo,ats), U32, (U32, Ptr{U32}, Ptr{U8}),
         handle, memorySize_samples, bitsPerSample)
+
+AlazarGetParameter(handle::U32, channel, parameter, value) =
+    ccall((:AlazarGetParameter,ats), U32, (U32, U8, U32, Ptr{Clong}),
+        handle, channel, parameter, value)
+
+AlazarGetParameterUL(handle::U32, channel, parameter, value) =
+    ccall((:AlazarGetParameterUL,ats), U32, (U32, U8, U32, Ptr{U32}),
+        handle, channel, parameter, value)
 
 AlazarInputControl(handle::U32, channel, coupling, inputRange, impedance) =
     ccall((:AlazarInputControl,ats), U32, (U32, U8, U32, U32, U32),
