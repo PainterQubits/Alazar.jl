@@ -123,14 +123,15 @@ include("AlazarErrors.jl")
 export AlazarAbortAsyncRead, AlazarAbortCapture, AlazarBeforeAsyncRead
 export AlazarBoardsInSystemBySystemID, AlazarBusy, AlazarConfigureAuxIO
 export AlazarConfigureLSB, AlazarConfigureRecordAverage, AlazarForceTrigger
-export AlazarForceTriggerEnable, AlazarGetChannelInfo, AlazarGetParameter,
-export AlazarGetParameterUL
-export AlazarInputControl, AlazarNumOfSystems, AlazarPostAsyncBuffer, AlazarRead
-export AlazarReadEx, AlazarResetTimeStamp, AlazarSetBWLimit
-export AlazarSetCaptureClock, AlazarSetExternalClockLevel, AlazarSetExternalTrigger
-export AlazarSetLED, AlazarSetParameter, AlazarSetParameterUL, AlazarSetRecordCount
-export AlazarSetRecordSize, AlazarSetTriggerDelay, AlazarSetTriggerOperation
-export AlazarSetTriggerTimeOut, AlazarSetTriggerTimeoutTicks, AlazarSleepDevice
+export AlazarForceTriggerEnable, AlazarGetBoardBySystemID, AlazarGetBoardKind
+export AlazarGetChannelInfo, AlazarInputControl, AlazarNumOfSystems
+export AlazarGetParameter, AlazarGetParameterUL
+export AlazarPostAsyncBuffer, AlazarRead, AlazarReadEx, AlazarResetTimeStamp
+export AlazarSetBWLimit, AlazarSetCaptureClock, AlazarSetExternalClockLevel
+export AlazarSetExternalTrigger, AlazarSetLED, AlazarSetParameter
+export AlazarSetParameterUL, AlazarSetRecordCount, AlazarSetRecordSize
+export AlazarSetTriggerDelay, AlazarSetTriggerOperation, AlazarSetTriggerTimeOut
+export AlazarSetTriggerTimeoutTicks, AlazarSleepDevice
 export AlazarStartCapture, AlazarTriggered, AlazarWaitAsyncBufferComplete
 
 AlazarAbortAsyncRead(handle::U32) =
@@ -166,6 +167,12 @@ AlazarForceTrigger(handle::U32) =
 
 AlazarForceTriggerEnable(handle::U32) =
     ccall((:AlazarForceTriggerEnable,ats),U32,(U32,),handle)
+
+AlazarGetBoardKind(handle::U32) =
+    ccall((:AlazarGetBoardKind,ats),U32,(U32,),handle)
+
+AlazarGetBoardBySystemID(systemID, boardID) =
+    ccall((:AlazarGetBoardBySystemID,ats),U32,(U32,U32),systemID,boardID)
 
 AlazarGetChannelInfo(handle::U32, memorySize_samples, bitsPerSample) =
     ccall((:AlazarGetChannelInfo,ats), U32, (U32, Ptr{U32}, Ptr{U8}),
