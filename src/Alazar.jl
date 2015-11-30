@@ -229,11 +229,11 @@ AlazarSetLED(handle::U32, ledState) =
     ccall((:AlazarSetLED,ats), U32, (U32, U32), handle, ledState)
 
 AlazarSetParameter(handle::U32, channelId, parameterId, value) =
-    ccall((:AlazarSetParameter,ats), U32, (U32, U8, U32, Ptr{Clong}),
+    ccall((:AlazarSetParameter,ats), U32, (U32, U8, U32, Clong),
         handle, channelId, parameterId, value)
 
 AlazarSetParameterUL(handle::U32, channelId, parameterId, value) =
-    ccall((:AlazarSetParameterUL,ats), U32, (U32, U8, U32, Ptr{U32}),
+    ccall((:AlazarSetParameterUL,ats), U32, (U32, U8, U32, U32),
         handle, channelId, parameterId, value)
 
 AlazarSetRecordCount(handle::U32, count) =
