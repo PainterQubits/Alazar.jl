@@ -7,18 +7,39 @@ API. All the exported methods directly map to underlying C
 functions. Please see the ATS-SDK Guide for detailed specification of
 these functions.
 
-For convenience we define a Julia type for allocating a buffer:
+For convenience we define a Julia type for allocating DMA buffers
+in such a way as to enable multithreaded processing.
 
-DMABuffer: Holds a memory buffer suitable for data transfer with digitizers.
+DMABufferArray: An indexable, iterable type where each index is a
+pointer to a page-aligned chunk of memory suitable for DMA transfer.
+The memory is all contiguous and backed by a SharedArray.
 """
 
 module Alazar
 
+import Base: size, linearindexing, getindex, length, show, convert
+
 # Type aliases go here
 export U32, U16, S16, U8
 export dsp_module_handle
-export DMABuffer
-export ats, libc
+export DMABufferArray
+export libopen
+export AlazarBits, Alazar8Bit, Alazar12Bit, Alazar16Bit
+
+abstract  AlazarBits
+immutable Alazar8Bit  <: AlazarBits
+    b::UInt8
+end
+immutable Alazar12Bit <: AlazarBits
+    b::UInt16
+end
+immutable Alazar16Bit <: AlazarBits
+    b::UInt16
+end
+
+show{T<:AlazarBits}(io::IO, bit::T) = show(io, bit.b)
+convert{T<:AlazarBits}(UInt8, x::T)  = convert(UInt8, x.b)
+convert{T<:AlazarBits}(UInt16, x::T) = convert(UInt16, x.b)
 
 typealias U32 Culong
 typealias U16 Cushort
@@ -34,18 +55,24 @@ include("AlazarConstants.jl")
 const ats = @windows? "ATSApi.dll" : "libATSApi.so"
 const libc = "libc.so.6"
 
-@windows? begin
-    atsHandle = Libdl.dlopen(ats)
-    atexit(()->Libdl.dlclose(atsHandle))
-end : (@linux? begin
-    atsHandle = Libdl.dlopen(ats)
-    libcHandle = Libdl.dlopen(libc)
-    atexit(()->begin
-        Libdl.dlclose(atsHandle)
-        Libdl.dlclose(libcHandle)
-    end)
-end : throw(SystemError("OS not supported")))
-
+# The library should only be loaded once. We don't load it automatically because
+# if another worker process loads this module, there could be problems.
+#
+# Instead the library should be given the chance to load (if it hasn't already)
+# whenever Julia objects representing instruments are created.
+libopen() = begin
+    @windows? begin
+        atsHandle = Libdl.dlopen(ats)
+        atexit(()->Libdl.dlclose(atsHandle))
+    end : (@linux? begin
+        atsHandle = Libdl.dlopen(ats)
+        libcHandle = Libdl.dlopen(libc)
+        atexit(()->begin
+            Libdl.dlclose(atsHandle)
+            Libdl.dlclose(libcHandle)
+        end)
+    end : throw(SystemError("OS not supported")))
+end
 
 """
 Buffer suitable for DMA transfers.
@@ -67,56 +94,91 @@ Args:
 
 *Something to watch out for: this code does not support 32-bit systems!*
 """
-type DMABuffer{cSampleType <: Union{UInt16,UInt8}}
-    bytesPerSample::Culonglong
-    sizeBytes::Culonglong
-    addr::Ptr{cSampleType}
-    array::Array{cSampleType}
+type DMABufferArray{sample_type <: AlazarBits} <:
+        AbstractArray{Ptr{sample_type},1}
 
-    DMABuffer(bytesPerSample, sizeBytes) = begin
-    if (typeof(bytesPerSample) != Culonglong || typeof(sizeBytes) != Culonglong)
-        throw(ArgumentError("You should be more careful using inner constructors..."))
+    bytes_buf::Int
+    n_buf::Int
+    backing::SharedArray{sample_type}
+
+    DMABufferArray(bytes_buf, n_buf) = begin
+        # Old version used valloc:
+        # addr = virtualalloc(size_bytes, sample_type)
+        #
+        # buffer = pointer_to_array(addr, fld(size_bytes, bytes_per_sample), false)
+        # dmabuf = new(Culonglong(bytes_per_sample), Culonglong(size_bytes), addr, buffer)
+        #
+        # finalizer(dmabuf, destroy)
+
+        # Allocate an uninitialized shared array
+        # Conveniently, SharedArrays use mmap which returns page-aligned memory.
+        # They will also let us process the data faster.
+
+        n_buf > 1 && bytes_buf % Base.Mmap.PAGESIZE != 0 &&
+            error("Bytes per buffer must be a multiple of Base.Mmap.PAGESIZE when",
+                  "there is more than one buffer.")
+
+        backing = SharedArray(sample_type,
+                        Int((bytes_buf * n_buf) / sizeof(sample_type)))
+
+        dmabuf = new(bytes_buf,
+                     n_buf,
+                     backing)
+
+        return dmabuf
     end
 
-    # Only Windows or UNIX supported, not OS X...?
-    @windows? begin
-        MEM_COMMIT = U32(0x1000)
-        PAGE_READWRITE = U32(0x4)
-        addr = ccall((:VirtualAlloc,"Kernel32"), Ptr{cSampleType},
-            (Ptr{Void},Culonglong,Culong,Culong),
-            C_NULL, sizeBytes, MEM_COMMIT, PAGE_READWRITE)
-    end : (@linux? begin
-        addr = ccall((:valloc,libc), Ptr{cSampleType}, (Culonglong,), sizeBytes)    #Culong, ?
-    end : throw(SystemError()))
-
-    if (addr == C_NULL)
-        throw(OutOfMemoryError())
-    end
-
-    buffer = pointer_to_array(addr, fld(sizeBytes, bytesPerSample), false)
-    dmabuf = new(bytesPerSample, sizeBytes, addr, buffer)
-
-    finalizer(dmabuf, destroy)
-    return dmabuf
-    end
 end
 
-DMABuffer(bytesPerSample::Culonglong, sizeBytes::Culonglong) =
-    (bytesPerSample > 1) ? DMABuffer{UInt16}(bytesPerSample, sizeBytes) :
-                           DMABuffer{UInt8}(bytesPerSample, sizeBytes)
+Base.size(dma::DMABufferArray) = (dma.n_buf,)
+Base.linearindexing(::Type{DMABufferArray}) = Base.LinearFast()
+Base.getindex(dma::DMABufferArray, i::Int) =
+    pointer(dma.backing) + (i-1) * dma.bytes_buf
+Base.length(dma::DMABufferArray) = dma.n_buf
 
-DMABuffer(a, b) = DMABuffer(convert(Culonglong,a),convert(Culonglong,b))
+DMABufferArray(bits, bytes_buf, n_buf) =
+    DMABufferArray{sample_type(bits)}(bytes_buf, n_buf)
 
+sample_type(bits::Integer) = begin
+    bits == 8 ? Alazar8Bit :
+    (bits == 12 ? Alazar12Bit : Alazar16Bit)
+end
+
+bytes_per_sample{T}(buf_array::DMABufferArray{T}) = sizeof(T)
+
+# ====Deprecated====
+#
 # Not to be called by the user!
-destroy(buf::DMABuffer) = begin
-    @windows? begin
-        MEM_RELEASE = 0x8000
-        ccall((:VirtualFree,"Kernel32"),Cint,(Ptr{Void},Culonglong,Culong),
-            buf.addr,Culonglong(0),MEM_RELEASE)
-    end : (@linux? begin
-        ccall((:free,"libc"),Void,(Ptr{Void},),buf.addr)
-    end : throw(SystemError()))
-end
+# function destroy(buf::DMABuffer)
+#     virtualfree(buf.addr)
+# end
+#
+# function virtualalloc{T<:Union{UInt8,UInt16}}(size_bytes::Integer, ::Type{T})
+#     @windows? begin
+#         MEM_COMMIT = U32(0x1000)
+#         PAGE_READWRITE = U32(0x4)
+#         addr = ccall((:VirtualAlloc, "Kernel32"), Ptr{T},
+#             (Ptr{Void}, Culonglong, Culong, Culong),
+#             C_NULL, size_bytes, MEM_COMMIT, PAGE_READWRITE)
+#     end : (@linux? begin
+#         addr = ccall((:valloc, libc), Ptr{T}, (Culonglong,), size_bytes)
+#     end : throw(SystemError()))
+#
+#     addr == C_NULL && throw(OutOfMemoryError())
+#
+#     addr::Ptr{T}
+# end
+#
+# function virtualfree{T<:Union{UInt16,UInt8}}(addr::Ptr{T})
+#     @windows? begin
+#         MEM_RELEASE = 0x8000
+#         ccall((:VirtualFree, "Kernel32"), Cint, (Ptr{Void}, Culonglong, Culong),
+#             addr, Culonglong(0), MEM_RELEASE)
+#     end : (@linux? begin
+#         ccall((:free, "libc"), Void, (Ptr{Void},), addr)
+#     end : throw(SystemError()))
+#     nothing
+# end
 
 include("AlazarErrors.jl")
 
