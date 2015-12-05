@@ -23,7 +23,7 @@ import Base: size, linearindexing, getindex, length, show, convert
 export U32, U16, S16, U8
 export dsp_module_handle
 export DMABufferArray
-export libopen
+export alazaropen
 export AlazarBits, Alazar8Bit, Alazar12Bit, Alazar16Bit
 
 abstract  AlazarBits
@@ -60,7 +60,7 @@ const libc = "libc.so.6"
 #
 # Instead the library should be given the chance to load (if it hasn't already)
 # whenever Julia objects representing instruments are created.
-libopen() = begin
+alazaropen() = begin
     @windows? begin
         atsHandle = Libdl.dlopen(ats)
         atexit(()->Libdl.dlclose(atsHandle))
