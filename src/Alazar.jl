@@ -1,18 +1,43 @@
 """
-Julia interface to the AlazarTech SDK.
+# Julia interface to the AlazarTech SDK.
+
 Adapted from the C and Python APIs by Andrew Keller (andrew.keller.09@gmail.com)
 
+## Description
 This module provides a thin wrapper on top of the AlazarTech C
 API. All the exported methods directly map to underlying C
 functions. Please see the ATS-SDK Guide for detailed specification of
 these functions.
 
-For convenience we define a Julia type for allocating DMA buffers
-in such a way as to enable multithreaded processing.
+`alazaropen()` must be called once and only once after loading this package. Do
+not call it from Julia workers or undefined behavior may occur. No manual
+cleanup is necessary upon exiting Julia.
 
-DMABufferArray: An indexable, iterable type where each index is a
-pointer to a page-aligned chunk of memory suitable for DMA transfer.
-The memory is all contiguous and backed by a SharedArray.
+## Types
+
+### Type aliases
+`U32`, `U16`, `U8`, `S32`, `S16`, `dsp_module_handle` aliased to their
+respective C types.
+
+### DMABufferArray
+An indexable, iterable type where each index is a pointer to a page-aligned
+chunk of memory suitable for DMA transfer. The memory is all contiguous and
+backed by a `SharedArray`. The end user is responsible for ensuring that the
+nth buffer in the array falls on a page boundary, but we warn about it.
+
+### AlazarBits
+`Alazar8Bit`, `Alazar12Bit`, `Alazar16Bit`.
+
+These encapsulate 8-bit, 12-bit, and 16-bit UInts. They have very little
+overhead being declared immutable, but have the advantage that 12-bit and 16-bit
+formats are distinguishable by type.
+
+### AlazarFFTOutputFormat
+`U16Log`, `U16Amp2`, `U8Log`, `U8Amp2`,
+`S32Real`, `S32Imag`, `FloatLog`, `FloatAmp2`.
+
+Similar strategy as for `AlazarBits` types. Permits efficient encoding of
+FFT output data while distinguishing between e.g. `S32Real` and `S32Imag`.
 """
 
 module Alazar
@@ -20,14 +45,25 @@ module Alazar
 import Base: size, linearindexing, getindex, length, show, convert
 
 # Type aliases go here
-export U32, U16, S16, U8
+export U32, U16, U8, S32, S16
 export dsp_module_handle
-export DMABufferArray
-export alazaropen
 export AlazarBits, Alazar8Bit, Alazar12Bit, Alazar16Bit
+export AlazarFFTOutputFormat
+export U16Log, U16Amp2, U8Log, U8Amp2
+export S32Real, S32Imag, FloatLog, FloatAmp2
+export DMABufferArray
 
-abstract  AlazarBits
-immutable Alazar8Bit  <: AlazarBits
+export alazaropen
+
+typealias U32 Culong
+typealias U16 Cushort
+typealias U8 Cuchar
+typealias S32 Clong
+typealias S16 Cshort
+typealias dsp_module_handle Ptr{Void}
+
+abstract AlazarBits
+immutable Alazar8Bit <: AlazarBits
     b::UInt8
 end
 immutable Alazar12Bit <: AlazarBits
@@ -38,14 +74,38 @@ immutable Alazar16Bit <: AlazarBits
 end
 
 show{T<:AlazarBits}(io::IO, bit::T) = show(io, bit.b)
-convert{T<:AlazarBits}(UInt8, x::T)  = convert(UInt8, x.b)
-convert{T<:AlazarBits}(UInt16, x::T) = convert(UInt16, x.b)
+convert{S<:Number, T<:AlazarBits}(::Type{S}, x::T)  = convert(S, x.b)
 
-typealias U32 Culong
-typealias U16 Cushort
-typealias S16 Cshort
-typealias U8 Cuchar
-typealias dsp_module_handle Ptr{Void}
+abstract  AlazarFFTOutputFormat
+immutable U16Log <: AlazarFFTOutputFormat
+    b::U16
+end
+immutable U16Amp2 <: AlazarFFTOutputFormat
+    b::U16
+end
+immutable U8Log <: AlazarFFTOutputFormat
+    b::U8
+end
+immutable U8Amp2 <: AlazarFFTOutputFormat
+    b::U8
+end
+immutable S32Real <: AlazarFFTOutputFormat
+    b::S32
+end
+immutable S32Imag <: AlazarFFTOutputFormat
+    b::S32
+end
+immutable FloatLog <: AlazarFFTOutputFormat
+    b::Cfloat
+end
+immutable FloatAmp2 <: AlazarFFTOutputFormat
+    b::Cfloat
+end
+
+show{T<:AlazarFFTOutputFormat}(io::IO, v::T) = show(io, v.b)
+convert{S<:Real,T<:AlazarFFTOutputFormat}(::Type{S}, x::T) = convert(S, x.b)
+convert{S<:Complex,T<:S32Real}(::Type{S}, x::T) = S(x.b,0)
+convert{S<:Complex,T<:S32Imag}(::Type{S}, x::T) = S(0,x.b)
 
 # Constants and exceptions go here
 include("AlazarConstants.jl")
@@ -82,15 +142,12 @@ data from digitizers to the computer's main memory. This class
 abstracts a memory buffer on the host, and ensures that all the
 requirements for DMA transfers are met.
 
-DMABuffers export a 'buffer' member, which is a Julia Array
-of the underlying memory buffer
-
 Args:
 
-  bytesPerSample (int): The number of bytes per samples of the
-  data. This varies with digitizer models and configurations.
+  bytes_buf: The number of bytes per buffer. If there is more than one
+  buffer it should be a multiple of Base.Mmap.PAGESIZE.
 
-  sizeBytes (int): The size of the buffer to allocate, in bytes.
+  n_buf: The size of the buffer to allocate, in bytes.
 
 *Something to watch out for: this code does not support 32-bit systems!*
 """
@@ -115,7 +172,7 @@ type DMABufferArray{sample_type <: AlazarBits} <:
         # They will also let us process the data faster.
 
         n_buf > 1 && bytes_buf % Base.Mmap.PAGESIZE != 0 &&
-            error("Bytes per buffer must be a multiple of Base.Mmap.PAGESIZE when",
+            error("Bytes per buffer must be a multiple of Base.Mmap.PAGESIZE when ",
                   "there is more than one buffer.")
 
         backing = SharedArray(sample_type,
@@ -139,7 +196,7 @@ Base.length(dma::DMABufferArray) = dma.n_buf
 DMABufferArray(bits, bytes_buf, n_buf) =
     DMABufferArray{sample_type(bits)}(bytes_buf, n_buf)
 
-sample_type(bits::Integer) = begin
+sample_type(bits) = begin
     bits == 8 ? Alazar8Bit :
     (bits == 12 ? Alazar12Bit : Alazar16Bit)
 end
