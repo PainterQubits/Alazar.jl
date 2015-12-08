@@ -16,9 +16,10 @@ API. Nearly all the exported methods directly map to underlying C
 functions. Please see the ATS-SDK Guide for detailed specification of
 these functions. It is up to the user to provide error handling.
 
-`alazaropen()` must be called once and only once after loading this package. Do
-not call it from Julia workers or undefined behavior may occur. No manual
-cleanup is necessary upon exiting Julia.
+`alazaropen()`, which loads the shared libraries, must be called once
+and only once after loading this package. When using multiple Julia
+worker processes, do not call it from workers or undefined behavior
+may occur. No manual cleanup is necessary upon exiting Julia.
 
 ## Types
 ### Type aliases
