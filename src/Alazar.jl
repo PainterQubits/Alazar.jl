@@ -26,18 +26,19 @@ backed by a `SharedArray`. The end user is responsible for ensuring that the
 nth buffer in the array falls on a page boundary, but we warn about it.
 
 ### AlazarBits
-`Alazar8Bit`, `Alazar12Bit`, `Alazar16Bit`.
+`abstract AlazarBits`
+`Alazar8Bit`, `Alazar12Bit`, `Alazar16Bit <: AlazarBits`
 
 These encapsulate 8-bit, 12-bit, and 16-bit UInts. They have very little
 overhead being declared immutable, but have the advantage that 12-bit and 16-bit
-formats are distinguishable by type.
+formats are distinguishable by type. Used for typical acquisitions.
 
-### AlazarFFTOutputFormat
+`abstract AlazarFFTBits <: AlazarBits`
 `U16Log`, `U16Amp2`, `U8Log`, `U8Amp2`,
-`S32Real`, `S32Imag`, `FloatLog`, `FloatAmp2`.
+`S32Real`, `S32Imag`, `FloatLog`, `FloatAmp2 <: AlazarFFTBits`
 
-Similar strategy as for `AlazarBits` types. Permits efficient encoding of
-FFT output data while distinguishing between e.g. `S32Real` and `S32Imag`.
+Permits efficient encoding of FFT output data while distinguishing
+between e.g. `S32Real` and `S32Imag`.
 """
 
 module Alazar
@@ -48,8 +49,7 @@ import Base: size, linearindexing, getindex, length, show, convert
 export U32, U16, U8, S32, S16
 export dsp_module_handle
 export AlazarBits, Alazar8Bit, Alazar12Bit, Alazar16Bit
-export AlazarFFTOutputFormat
-export U16Log, U16Amp2, U8Log, U8Amp2
+export AlazarFFTBits, U16Log, U16Amp2, U8Log, U8Amp2
 export S32Real, S32Imag, FloatLog, FloatAmp2
 export DMABufferArray
 
@@ -63,49 +63,47 @@ typealias S16 Cshort
 typealias dsp_module_handle Ptr{Void}
 
 abstract AlazarBits
+abstract AlazarFFTBits <: AlazarBits
+
 immutable Alazar8Bit <: AlazarBits
-    b::UInt8
+    b::U8
 end
 immutable Alazar12Bit <: AlazarBits
-    b::UInt16
+    b::U16
 end
 immutable Alazar16Bit <: AlazarBits
-    b::UInt16
-end
-
-show{T<:AlazarBits}(io::IO, bit::T) = show(io, bit.b)
-convert{S<:Number, T<:AlazarBits}(::Type{S}, x::T)  = convert(S, x.b)
-
-abstract  AlazarFFTOutputFormat
-immutable U16Log <: AlazarFFTOutputFormat
     b::U16
 end
-immutable U16Amp2 <: AlazarFFTOutputFormat
+immutable U16Log <: AlazarFFTBits
     b::U16
 end
-immutable U8Log <: AlazarFFTOutputFormat
+immutable U16Amp2 <: AlazarFFTBits
+    b::U16
+end
+immutable U8Log <: AlazarFFTBits
     b::U8
 end
-immutable U8Amp2 <: AlazarFFTOutputFormat
+immutable U8Amp2 <: AlazarFFTBits
     b::U8
 end
-immutable S32Real <: AlazarFFTOutputFormat
+immutable S32Real <: AlazarFFTBits
     b::S32
 end
-immutable S32Imag <: AlazarFFTOutputFormat
+immutable S32Imag <: AlazarFFTBits
     b::S32
 end
-immutable FloatLog <: AlazarFFTOutputFormat
+immutable FloatLog <: AlazarFFTBits
     b::Cfloat
 end
-immutable FloatAmp2 <: AlazarFFTOutputFormat
+immutable FloatAmp2 <: AlazarFFTBits
     b::Cfloat
 end
 
-show{T<:AlazarFFTOutputFormat}(io::IO, v::T) = show(io, v.b)
-convert{S<:Real,T<:AlazarFFTOutputFormat}(::Type{S}, x::T) = convert(S, x.b)
+convert{S<:Number,T<:AlazarBits}(::Type{S}, x::T) = convert(S, x.b)
 convert{S<:Complex,T<:S32Real}(::Type{S}, x::T) = S(x.b,0)
 convert{S<:Complex,T<:S32Imag}(::Type{S}, x::T) = S(0,x.b)
+convert{T<:AlazarBits}(::Type{T}, x::T) = x
+convert{S<:AlazarBits,T<:AlazarBits}(::Type{S}, x::T) = S(x.b)
 
 # Constants and exceptions go here
 include("AlazarConstants.jl")
@@ -192,14 +190,6 @@ Base.linearindexing(::Type{DMABufferArray}) = Base.LinearFast()
 Base.getindex(dma::DMABufferArray, i::Int) =
     pointer(dma.backing) + (i-1) * dma.bytes_buf
 Base.length(dma::DMABufferArray) = dma.n_buf
-
-DMABufferArray(bits, bytes_buf, n_buf) =
-    DMABufferArray{sample_type(bits)}(bytes_buf, n_buf)
-
-sample_type(bits) = begin
-    bits == 8 ? Alazar8Bit :
-    (bits == 12 ? Alazar12Bit : Alazar16Bit)
-end
 
 bytes_per_sample{T}(buf_array::DMABufferArray{T}) = sizeof(T)
 
