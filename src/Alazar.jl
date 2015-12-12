@@ -149,7 +149,7 @@ Args:
 
 *Something to watch out for: this code does not support 32-bit systems!*
 """
-type DMABufferArray{sample_type <: AlazarBits} <:
+type DMABufferArray{sample_type} <:
         AbstractArray{Ptr{sample_type},1}
 
     bytes_buf::Int
@@ -191,7 +191,8 @@ Base.getindex(dma::DMABufferArray, i::Int) =
     pointer(dma.backing) + (i-1) * dma.bytes_buf
 Base.length(dma::DMABufferArray) = dma.n_buf
 
-bytes_per_sample{T}(buf_array::DMABufferArray{T}) = sizeof(T)
+bytespersample{T}(buf_array::DMABufferArray{T}) = sizeof(T)
+sampletype{T}(buf_array::DMABufferArray{T}) = T
 
 # ====Deprecated====
 #
