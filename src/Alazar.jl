@@ -1,46 +1,4 @@
-"""
-# Julia interface to the AlazarTech SDK.
-
-Adapted from the C and Python APIs by Andrew Keller (andrew.keller.09@gmail.com)
-
-## Description
-This module provides a thin wrapper on top of the AlazarTech C
-API. All the exported methods directly map to underlying C
-functions. Please see the ATS-SDK Guide for detailed specification of
-these functions.
-
-`alazaropen()` must be called once and only once after loading this package. Do
-not call it from Julia workers or undefined behavior may occur. No manual
-cleanup is necessary upon exiting Julia.
-
-## Types
-
-### Type aliases
-`U32`, `U16`, `U8`, `S32`, `S16`, `dsp_module_handle` aliased to their
-respective C types.
-
-### DMABufferArray
-An indexable, iterable type where each index is a pointer to a page-aligned
-chunk of memory suitable for DMA transfer. The memory is all contiguous and
-backed by a `SharedArray`. The end user is responsible for ensuring that the
-nth buffer in the array falls on a page boundary, but we warn about it.
-
-### AlazarBits
-`abstract AlazarBits`
-`Alazar8Bit`, `Alazar12Bit`, `Alazar16Bit <: AlazarBits`
-
-These encapsulate 8-bit, 12-bit, and 16-bit UInts. They have very little
-overhead being declared immutable, but have the advantage that 12-bit and 16-bit
-formats are distinguishable by type. Used for typical acquisitions.
-
-`abstract AlazarFFTBits <: AlazarBits`
-`U16Log`, `U16Amp2`, `U8Log`, `U8Amp2`,
-`S32Real`, `S32Imag`, `FloatLog`, `FloatAmp2 <: AlazarFFTBits`
-
-Permits efficient encoding of FFT output data while distinguishing
-between e.g. `S32Real` and `S32Imag`.
-"""
-
+__precompile__(true)
 module Alazar
 
 import Base: size, linearindexing, getindex, length, show, convert
