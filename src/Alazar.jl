@@ -1,6 +1,7 @@
 __precompile__(true)
 module Alazar
 
+using Compat
 import Base: size, linearindexing, getindex, length, show, convert
 
 # Type aliases go here
@@ -79,7 +80,7 @@ include("AlazarConstants.jl")
 
 # Load libraries
 # DL_LOAD_PATH = @windows? "C:\\Users\\Discord\\Documents\\" : "/usr/local/lib/"
-const ats = @windows? "ATSApi.dll" : "libATSApi.so"
+const ats = @compat @static is_windows()? "ATSApi.dll" : "libATSApi.so";
 const libc = "libc.so.6"
 
 # The library should only be loaded once. We don't load it automatically because
@@ -88,17 +89,17 @@ const libc = "libc.so.6"
 # Instead the library should be given the chance to load (if it hasn't already)
 # whenever Julia objects representing instruments are created.
 alazaropen() = begin
-    @windows? begin
+    @compat @static is_windows()? begin
         atsHandle = Libdl.dlopen(ats)
         atexit(()->Libdl.dlclose(atsHandle))
-    end : (@linux? begin
+    end : (@compat @static is_linux()? begin
         atsHandle = Libdl.dlopen(ats)
         libcHandle = Libdl.dlopen(libc)
         atexit(()->begin
             Libdl.dlclose(atsHandle)
             Libdl.dlclose(libcHandle)
         end)
-    end : throw(SystemError("OS not supported")))
+    end : error("OS not supported"))
 end
 
 include("AlazarBuffer.jl")
