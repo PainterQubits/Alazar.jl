@@ -56,7 +56,19 @@ immutable FloatAmp2 <: AlazarFFTBits
     b::Cfloat
 end
 
-convert{S<:Number,T<:AlazarBits}(::Type{S}, x::T) = convert(S, x.b)
+convert(::Type{UInt8}, x::Alazar8Bit) = ltoh(convert(UInt8, x.b))
+convert{T<:Integer}(::Type{T}, x::Alazar8Bit) = convert(T, convert(UInt8, x))
+convert{T<:AbstractFloat}(::Type{T}, x::Alazar8Bit) = T(convert(UInt8,x)/0xFF*2-1)
+
+convert(::Type{UInt16}, x::Alazar12Bit) = ltoh(convert(UInt16, x.b)) >> 4
+convert{T<:Integer}(::Type{T}, x::Alazar12Bit) = convert(T, convert(UInt16, x))
+convert{T<:AbstractFloat}(::Type{T}, x::Alazar12Bit) = T(convert(UInt16,x)/0xFFF*2-1)
+
+convert(::Type{UInt16}, x::Alazar16Bit) = ltoh(convert(UInt16, x.b))
+convert{T<:Integer}(::Type{T}, x::Alazar16Bit) = convert(T, convert(UInt16, x))
+convert{T<:AbstractFloat}(::Type{T}, x::Alazar16Bit) = T(convert(UInt16,x)/0xFFFF*2-1)
+
+convert{S<:Real,T<:AlazarBits}(::Type{S}, x::T) = convert(S, x.b)
 convert{S<:Complex,T<:S32Real}(::Type{S}, x::T) = S(x.b,0)
 convert{S<:Complex,T<:S32Imag}(::Type{S}, x::T) = S(0,x.b)
 convert{T<:AlazarBits}(::Type{T}, x::T) = x
