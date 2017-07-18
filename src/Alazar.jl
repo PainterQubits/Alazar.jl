@@ -13,15 +13,15 @@ export S32Real, S32Imag, FloatLog, FloatAmp2
 
 export alazaropen
 
-typealias U32 Culong
-typealias U16 Cushort
-typealias U8 Cuchar
-typealias S32 Clong
-typealias S16 Cshort
-typealias dsp_module_handle Ptr{Void}
+const U32 = Culong
+const U16 = Cushort
+const U8  = Cuchar
+const S32 = Clong
+const S16 = Cshort
+const dsp_module_handle = Ptr{Void}
 
-abstract AlazarBits
-abstract AlazarFFTBits <: AlazarBits
+@compat abstract type AlazarBits end
+@compat abstract type AlazarFFTBits <: AlazarBits end
 
 immutable Alazar8Bit <: AlazarBits
     b::U8
