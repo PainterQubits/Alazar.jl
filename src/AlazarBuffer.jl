@@ -23,7 +23,7 @@ type DMABufferArray{sample_type} <: AbstractArray{Ptr{sample_type},1}
     n_buf::Int
     backing::SharedArray{sample_type}
 
-    DMABufferArray(bytes_buf, n_buf) = begin
+    (::Type{DMABufferArray{sample_type}})(bytes_buf, n_buf) where {sample_type} = begin
         # Old version used valloc:
         # addr = virtualalloc(size_bytes, sample_type)
         #
@@ -40,10 +40,9 @@ type DMABufferArray{sample_type} <: AbstractArray{Ptr{sample_type},1}
             error("Bytes per buffer must be a multiple of Base.Mmap.PAGESIZE when ",
                   "there is more than one buffer.")
 
-        backing = SharedArray(sample_type,
-                        Int((bytes_buf * n_buf) / sizeof(sample_type)))
+        backing = SharedArray{sample_type}(Int((bytes_buf * n_buf) / sizeof(sample_type)))
 
-        dmabuf = new(bytes_buf,
+        dmabuf = new{sample_type}(bytes_buf,
                      n_buf,
                      backing)
 
@@ -53,7 +52,7 @@ type DMABufferArray{sample_type} <: AbstractArray{Ptr{sample_type},1}
 end
 
 Base.size(dma::DMABufferArray) = (dma.n_buf,)
-Base.linearindexing(::Type{DMABufferArray}) = Base.LinearFast()
+Base.IndexStyle(::Type{DMABufferArray}) = Base.IndexLinear()
 Base.getindex(dma::DMABufferArray, i::Int) =
     pointer(dma.backing) + (i-1) * dma.bytes_buf
 Base.length(dma::DMABufferArray) = dma.n_buf
