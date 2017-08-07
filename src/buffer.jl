@@ -17,7 +17,7 @@ Args:
 
 *Something to watch out for: this code does not support 32-bit systems!*
 """
-type DMABufferArray{sample_type} <: AbstractArray{Ptr{sample_type},1}
+mutable struct DMABufferArray{sample_type} <: AbstractArray{Ptr{sample_type},1}
 
     bytes_buf::Int
     n_buf::Int
@@ -57,8 +57,8 @@ Base.getindex(dma::DMABufferArray, i::Int) =
     pointer(dma.backing) + (i-1) * dma.bytes_buf
 Base.length(dma::DMABufferArray) = dma.n_buf
 
-bytespersample{T}(buf_array::DMABufferArray{T}) = sizeof(T)
-sampletype{T}(buf_array::DMABufferArray{T}) = T
+bytespersample(buf_array::DMABufferArray{T}) where {T} = sizeof(T)
+sampletype(buf_array::DMABufferArray{T}) where {T} = T
 
 # ====Deprecated====
 #

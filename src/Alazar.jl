@@ -22,64 +22,63 @@ const dsp_module_handle = Ptr{Void}
 abstract type AlazarBits end
 abstract type AlazarFFTBits <: AlazarBits end
 
-immutable Alazar8Bit <: AlazarBits
+struct Alazar8Bit <: AlazarBits
     b::U8
 end
-immutable Alazar12Bit <: AlazarBits
+struct Alazar12Bit <: AlazarBits
     b::U16
 end
-immutable Alazar16Bit <: AlazarBits
+struct Alazar16Bit <: AlazarBits
     b::U16
 end
-immutable U16Log <: AlazarFFTBits
+struct U16Log <: AlazarFFTBits
     b::U16
 end
-immutable U16Amp2 <: AlazarFFTBits
+struct U16Amp2 <: AlazarFFTBits
     b::U16
 end
-immutable U8Log <: AlazarFFTBits
+struct U8Log <: AlazarFFTBits
     b::U8
 end
-immutable U8Amp2 <: AlazarFFTBits
+struct U8Amp2 <: AlazarFFTBits
     b::U8
 end
-immutable S32Real <: AlazarFFTBits
+struct S32Real <: AlazarFFTBits
     b::S32
 end
-immutable S32Imag <: AlazarFFTBits
+struct S32Imag <: AlazarFFTBits
     b::S32
 end
-immutable FloatLog <: AlazarFFTBits
+struct FloatLog <: AlazarFFTBits
     b::Cfloat
 end
-immutable FloatAmp2 <: AlazarFFTBits
+struct FloatAmp2 <: AlazarFFTBits
     b::Cfloat
 end
 
 convert(::Type{UInt8}, x::Alazar8Bit) = ltoh(convert(UInt8, x.b))
-convert{T<:Integer}(::Type{T}, x::Alazar8Bit) = convert(T, convert(UInt8, x))
-convert{T<:AbstractFloat}(::Type{T}, x::Alazar8Bit) = T(convert(UInt8,x)/0xFF*2-1)
+convert(::Type{T}, x::Alazar8Bit) where {T <: Integer} = convert(T, convert(UInt8, x))
+convert(::Type{T}, x::Alazar8Bit) where {T <: AbstractFloat} = T(convert(UInt8,x)/0xFF*2-1)
 
 convert(::Type{UInt16}, x::Alazar12Bit) = ltoh(convert(UInt16, x.b)) >> 4
-convert{T<:Integer}(::Type{T}, x::Alazar12Bit) = convert(T, convert(UInt16, x))
-convert{T<:AbstractFloat}(::Type{T}, x::Alazar12Bit) = T(convert(UInt16,x)/0xFFF*2-1)
+convert(::Type{T}, x::Alazar12Bit) where {T <: Integer} = convert(T, convert(UInt16, x))
+convert(::Type{T}, x::Alazar12Bit) where {T <: AbstractFloat} = T(convert(UInt16,x)/0xFFF*2-1)
 
 convert(::Type{UInt16}, x::Alazar16Bit) = ltoh(convert(UInt16, x.b))
-convert{T<:Integer}(::Type{T}, x::Alazar16Bit) = convert(T, convert(UInt16, x))
-convert{T<:AbstractFloat}(::Type{T}, x::Alazar16Bit) = T(convert(UInt16,x)/0xFFFF*2-1)
+convert(::Type{T}, x::Alazar16Bit) where {T <: Integer} = convert(T, convert(UInt16, x))
+convert(::Type{T}, x::Alazar16Bit) where {T <: AbstractFloat} = T(convert(UInt16,x)/0xFFFF*2-1)
 
-convert{S<:Real,T<:AlazarBits}(::Type{S}, x::T) = convert(S, x.b)
-convert{S<:Complex,T<:S32Real}(::Type{S}, x::T) = S(x.b,0)
-convert{S<:Complex,T<:S32Imag}(::Type{S}, x::T) = S(0,x.b)
-convert{T<:AlazarBits}(::Type{T}, x::T) = x
-convert{S<:AlazarBits,T<:AlazarBits}(::Type{S}, x::T) = S(x.b)
+convert(::Type{S}, x::T) where {S <: Real,T <: AlazarBits} = convert(S, x.b)
+convert(::Type{S}, x::T) where {S <: Complex,T <: S32Real} = S(x.b,0)
+convert(::Type{S}, x::T) where {S <: Complex,T <: S32Imag} = S(0,x.b)
+convert(::Type{T}, x::T) where {T <: AlazarBits} = x
+convert(::Type{S}, x::T) where {S <: AlazarBits,T <: AlazarBits} = S(x.b)
 
 # Constants and exceptions go here
-include("AlazarConstants.jl")
+include("constants.jl")
 
 # Load libraries
-# DL_LOAD_PATH = @windows? "C:\\Users\\Discord\\Documents\\" : "/usr/local/lib/"
-const ats = @static is_windows()? "ATSApi.dll" : "libATSApi.so";
+const ats = is_windows() ? "ATSApi.dll" : "libATSApi.so"
 const libc = "libc.so.6"
 
 # The library should only be loaded once. We don't load it automatically because
@@ -101,9 +100,9 @@ alazaropen() = begin
     end : error("OS not supported"))
 end
 
-include("AlazarBuffer.jl")
-include("AlazarErrors.jl")
-include("AlazarAPI.jl")
-include("AlazarDSP.jl")
+include("buffer.jl")
+include("errors.jl")
+include("api.jl")
+include("dsp.jl")
 
 end
