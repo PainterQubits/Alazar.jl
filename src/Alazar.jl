@@ -1,8 +1,6 @@
 __precompile__(true)
 module Alazar
 
-import Base: size, linearindexing, getindex, length, show, convert
-
 # Type aliases go here
 export U32, U16, U8, S32, S16
 export dsp_module_handle
@@ -56,23 +54,23 @@ struct FloatAmp2 <: AlazarFFTBits
     b::Cfloat
 end
 
-convert(::Type{UInt8}, x::Alazar8Bit) = ltoh(convert(UInt8, x.b))
-convert(::Type{T}, x::Alazar8Bit) where {T <: Integer} = convert(T, convert(UInt8, x))
-convert(::Type{T}, x::Alazar8Bit) where {T <: AbstractFloat} = T(convert(UInt8,x)/0xFF*2-1)
+Base.convert(::Type{UInt8}, x::Alazar8Bit) = ltoh(convert(UInt8, x.b))
+Base.convert(::Type{T}, x::Alazar8Bit) where {T <: Integer} = convert(T, convert(UInt8, x))
+Base.convert(::Type{T}, x::Alazar8Bit) where {T <: AbstractFloat} = T(convert(UInt8,x)/0xFF*2-1)
 
-convert(::Type{UInt16}, x::Alazar12Bit) = ltoh(convert(UInt16, x.b)) >> 4
-convert(::Type{T}, x::Alazar12Bit) where {T <: Integer} = convert(T, convert(UInt16, x))
-convert(::Type{T}, x::Alazar12Bit) where {T <: AbstractFloat} = T(convert(UInt16,x)/0xFFF*2-1)
+Base.convert(::Type{UInt16}, x::Alazar12Bit) = ltoh(convert(UInt16, x.b)) >> 4
+Base.convert(::Type{T}, x::Alazar12Bit) where {T <: Integer} = convert(T, convert(UInt16, x))
+Base.convert(::Type{T}, x::Alazar12Bit) where {T <: AbstractFloat} = T(convert(UInt16,x)/0xFFF*2-1)
 
-convert(::Type{UInt16}, x::Alazar16Bit) = ltoh(convert(UInt16, x.b))
-convert(::Type{T}, x::Alazar16Bit) where {T <: Integer} = convert(T, convert(UInt16, x))
-convert(::Type{T}, x::Alazar16Bit) where {T <: AbstractFloat} = T(convert(UInt16,x)/0xFFFF*2-1)
+Base.convert(::Type{UInt16}, x::Alazar16Bit) = ltoh(convert(UInt16, x.b))
+Base.convert(::Type{T}, x::Alazar16Bit) where {T <: Integer} = convert(T, convert(UInt16, x))
+Base.convert(::Type{T}, x::Alazar16Bit) where {T <: AbstractFloat} = T(convert(UInt16,x)/0xFFFF*2-1)
 
-convert(::Type{S}, x::T) where {S <: Real,T <: AlazarBits} = convert(S, x.b)
-convert(::Type{S}, x::T) where {S <: Complex,T <: S32Real} = S(x.b,0)
-convert(::Type{S}, x::T) where {S <: Complex,T <: S32Imag} = S(0,x.b)
-convert(::Type{T}, x::T) where {T <: AlazarBits} = x
-convert(::Type{S}, x::T) where {S <: AlazarBits,T <: AlazarBits} = S(x.b)
+Base.convert(::Type{S}, x::T) where {S <: Real,T <: AlazarBits} = convert(S, x.b)
+Base.convert(::Type{S}, x::T) where {S <: Complex,T <: S32Real} = S(x.b,0)
+Base.convert(::Type{S}, x::T) where {S <: Complex,T <: S32Imag} = S(0,x.b)
+Base.convert(::Type{T}, x::T) where {T <: AlazarBits} = x
+Base.convert(::Type{S}, x::T) where {S <: AlazarBits,T <: AlazarBits} = S(x.b)
 
 # Constants and exceptions go here
 include("constants.jl")
