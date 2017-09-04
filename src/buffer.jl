@@ -14,8 +14,8 @@ provided a page-aligned backing array is used (e.g. `Base.SharedVector` or
 `DMABufferVector(Alazar.PageAlignedArray{UInt8}, bytes_buf, n_buf)`.
 
 The fields of a `DMABufferVector{S,T}` are:
-- `bytes_buf::Int`: The number of bytes per buffer. If there is more than one buffer it should
-  be a multiple of Base.Mmap.PAGESIZE. This is enforced in the inner constructor.
+- `bytes_buf::Int`: The number of bytes per buffer. If there is more than one buffer it
+  should be a multiple of Base.Mmap.PAGESIZE. This is enforced in the inner constructor.
 - `n_buf::Int`: The number of buffers to allocate.
 - `backing::T`: The page-aligned backing array. `S` is `Ptr{eltype(T)}`.
 
@@ -103,8 +103,6 @@ Allocate page-aligned memory and return a `Ptr{T}` to the allocation. The caller
 responsible for de-allocating the memory using `virtualfree`, otherwise it will leak.
 """
 function virtualalloc(size_bytes::Integer, ::Type{T}) where {T}
-    local addr
-
     @static is_windows() ? begin
         MEM_COMMIT = 0x1000
         PAGE_READWRITE = 0x4
@@ -136,5 +134,5 @@ function virtualfree(addr::Ptr{T}) where {T}
         return ccall((:free, linux_libc), Void, (Ptr{Void},), addr)
     end : @static is_apple() ? begin
         return ccall((:free, "libSystem.dylib"), Void, (Ptr{Void},), addr)
-    end : throw(SystemError())
+    end : error("OS not supported")
 end
