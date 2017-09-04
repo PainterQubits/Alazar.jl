@@ -1,19 +1,19 @@
-export DMABufferArray, PageAlignedArray, PageAlignedVector
+export DMABufferVector, PageAlignedArray, PageAlignedVector
 
 """
-    struct DMABufferArray{S,T} <: AbstractVector{S}
+    struct DMABufferVector{S,T} <: AbstractVector{S}
 
 AlazarTech digitizers use direct memory access (DMA) to transfer data from digitizers to
 the computer's main memory. This struct abstracts memory buffers on the host. The elements
-of a `DMASharedArray` are pointers to the individual buffers, which are each page-aligned,
-provided a page-aligned backing array is used (e.g. `Base.SharedArray` or
-`Alazar.PageAlignedArray`).
+of a `DMABufferVector` are pointers to the individual buffers, which are each page-aligned,
+provided a page-aligned backing array is used (e.g. `Base.SharedVector` or
+`Alazar.PageAlignedVector`).
 
-`DMABufferArray` may be constructed as, for example,
-`DMABufferArray(SharedVector{UInt8}, bytes_buf, n_buf)` or
-`DMABufferArray(Alazar.PageAlignedArray{UInt8}, bytes_buf, n_buf)`.
+`DMABufferVector` may be constructed as, for example,
+`DMABufferVector(SharedVector{UInt8}, bytes_buf, n_buf)` or
+`DMABufferVector(Alazar.PageAlignedArray{UInt8}, bytes_buf, n_buf)`.
 
-The fields of a `DMABufferArray{S,T}` are:
+The fields of a `DMABufferVector{S,T}` are:
 - `bytes_buf::Int`: The number of bytes per buffer. If there is more than one buffer it should
   be a multiple of Base.Mmap.PAGESIZE. This is enforced in the inner constructor.
 - `n_buf::Int`: The number of buffers to allocate.
@@ -21,16 +21,17 @@ The fields of a `DMABufferArray{S,T}` are:
 
 This code may not support 32-bit systems.
 """
-struct DMABufferArray{S,T} <: AbstractVector{S}
+struct DMABufferVector{S,T} <: AbstractVector{S}
     bytes_buf::Int
     n_buf::Int
     backing::T
 
-    function DMABufferArray{S,T}(bytes_buf::Integer, n_buf::Integer) where {S,T<:AbstractVector}
+    function DMABufferVector{S,T}(bytes_buf::Integer, n_buf::Integer) where {S,T<:AbstractVector}
+        @assert n_buf >= 0
+        @assert bytes_buf * n_buf % sizeof(eltype(T)) == 0
         n_buf > 1 && bytes_buf % Base.Mmap.PAGESIZE != 0 &&
             error("bytes per buffer must be a multiple of Base.Mmap.PAGESIZE when ",
                   "there is more than one buffer.")
-        @assert bytes_buf * n_buf % sizeof(eltype(T)) == 0
 
         backing = T(div(bytes_buf * n_buf, sizeof(eltype(T))))
         Integer(pointer(backing)) % Base.Mmap.PAGESIZE != 0 &&
@@ -39,21 +40,21 @@ struct DMABufferArray{S,T} <: AbstractVector{S}
         return new{S,T}(bytes_buf, n_buf, backing)
     end
 end
-DMABufferArray(::Type{T}, bytes_buf::Integer, n_buf::Integer) where {S, T<:AbstractVector{S}} =
-    DMABufferArray{Ptr{S}, T}(bytes_buf, n_buf)
+DMABufferVector(::Type{T}, bytes_buf::Integer, n_buf::Integer) where {S, T<:AbstractVector{S}} =
+    DMABufferVector{Ptr{S}, T}(bytes_buf, n_buf)
 
-### DMABufferArray interface
+### DMABufferVector interface
 
-bytespersample(buf_array::DMABufferArray{Ptr{T}}) where {T} = sizeof(T)
-sampletype(buf_array::DMABufferArray{Ptr{T}}) where {T} = T
+bytespersample(buf_array::DMABufferVector{Ptr{T}}) where {T} = sizeof(T)
+sampletype(buf_array::DMABufferVector{Ptr{T}}) where {T} = T
 
 ### AbstractArray methods
 
-Base.size(dma::DMABufferArray) = (dma.n_buf,)
-Base.IndexStyle(::Type{DMABufferArray}) = Base.IndexLinear()
-Base.getindex(dma::DMABufferArray, i::Int) =
+Base.size(dma::DMABufferVector) = (dma.n_buf,)
+Base.IndexStyle(::Type{<:DMABufferVector}) = Base.IndexLinear()
+Base.getindex(dma::DMABufferVector, i::Int) =
     pointer(dma.backing) + (i-1) * dma.bytes_buf
-Base.length(dma::DMABufferArray) = dma.n_buf
+Base.length(dma::DMABufferVector) = dma.n_buf
 
 ## PageAlignedArray definitions
 
@@ -88,10 +89,10 @@ PageAlignedArray{T}(dims::Integer...) where {T} = PageAlignedArray{T,length(dims
 const PageAlignedVector{T} = PageAlignedArray{T,1}
 
 Base.size(A::PageAlignedArray) = size(A.backing)
-Base.IndexStyle(::Type{PageAlignedArray}) = Base.IndexLinear()
+Base.IndexStyle(::Type{<:PageAlignedArray}) = Base.IndexLinear()
 Base.getindex(A::PageAlignedArray, idx...) = A.backing[idx...]
 Base.setindex!(A::PageAlignedArray, v, idx...) = setindex!(A.backing, v, idx...)
-Base.length(dma::PageAlignedArray) = length(A.backing)
+Base.length(A::PageAlignedArray) = length(A.backing)
 Base.unsafe_convert(::Type{Ptr{T}}, A::PageAlignedArray{T}) where {T} =
     Base.unsafe_convert(Ptr{T}, A.backing)
 
@@ -104,19 +105,17 @@ responsible for de-allocating the memory using `virtualfree`, otherwise it will 
 function virtualalloc(size_bytes::Integer, ::Type{T}) where {T}
     local addr
 
-    @static if is_windows()
+    @static is_windows() ? begin
         MEM_COMMIT = 0x1000
         PAGE_READWRITE = 0x4
         addr = ccall((:VirtualAlloc, "Kernel32"), Ptr{T},
             (Ptr{Void}, Culonglong, Culong, Culong),
             C_NULL, size_bytes, MEM_COMMIT, PAGE_READWRITE)
-    end
-    @static if is_linux()
-        addr = ccall((:valloc, libc), Ptr{T}, (Culonglong,), size_bytes)
-    end
-    @static if (!is_linux() && !is_windows())
-        throw(SystemError())
-    end
+    end : @static is_linux() ? begin
+        addr = ccall((:valloc, linux_libc), Ptr{T}, (Culonglong,), size_bytes)
+    end : @static is_apple() ? begin
+        addr = ccall((:valloc, "libSystem.dylib"), Ptr{T}, (Culonglong,), size_bytes)
+    end : throw(SystemError())
 
     addr == C_NULL && throw(OutOfMemoryError())
     return addr::Ptr{T}
@@ -129,15 +128,13 @@ Free memory that has been allocated using `virtualalloc`. Undefined, likely very
 behavior if called on a pointer coming from elsewhere.
 """
 function virtualfree(addr::Ptr{T}) where {T}
-    @static if is_windows()
+    @static is_windows() ? begin
         MEM_RELEASE = 0x8000
         return ccall((:VirtualFree, "Kernel32"), Cint, (Ptr{Void}, Culonglong, Culong),
             addr, 0, MEM_RELEASE)
-    end
-    @static if is_linux()
-        return ccall((:free, "libc"), Void, (Ptr{Void},), addr)
-    end
-    @static if (!is_linux() && !is_windows())
-        throw(SystemError())
-    end
+    end : @static is_linux() ? begin
+        return ccall((:free, linux_libc), Void, (Ptr{Void},), addr)
+    end : @static is_apple() ? begin
+        return ccall((:free, "libSystem.dylib"), Void, (Ptr{Void},), addr)
+    end : throw(SystemError())
 end

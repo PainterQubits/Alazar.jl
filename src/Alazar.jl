@@ -77,8 +77,7 @@ include("constants.jl")
 
 # Load libraries
 const ats = is_windows() ? "ATSApi.dll" : "libATSApi.so"
-const libc = "libc.so.6"
-
+const linux_libc = "libc.so.6"
 # The library should only be loaded once. We don't load it automatically because
 # if another worker process loads this module, there could be problems.
 #
@@ -90,7 +89,7 @@ alazaropen() = begin
         atexit(()->Libdl.dlclose(atsHandle))
     end : (@static is_linux()? begin
         atsHandle = Libdl.dlopen(ats)
-        libcHandle = Libdl.dlopen(libc)
+        libcHandle = Libdl.dlopen(linux_libc)
         atexit(()->begin
             Libdl.dlclose(atsHandle)
             Libdl.dlclose(libcHandle)
