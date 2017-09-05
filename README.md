@@ -36,18 +36,19 @@ workers or undefined behavior may occur. No manual cleanup is necessary upon exi
 AlazarTech digitizers use direct memory access (DMA) to transfer data from digitizers to
 the computer's main memory. This struct abstracts memory buffers on the host. The elements
 of a `DMABufferVector` are pointers to the individual buffers, which are each page-aligned,
-provided a page-aligned backing array is used (e.g. `Base.SharedVector` or
-`Alazar.PageAlignedVector`).
+since a page-aligned backing array is required (e.g. `Base.SharedVector` or
+`Alazar.PageAlignedVector`). In keeping with convention for `AbstractVector{S}`, we have
+`eltype(::DMABufferVector{S}) = S`. We also have `S = Ptr{eltype(T)}`.
 
 `DMABufferVector` may be constructed as, for example,
 `DMABufferVector(SharedVector{UInt8}, bytes_buf, n_buf)` or
-`DMABufferVector(Alazar.PageAlignedArray{UInt8}, bytes_buf, n_buf)`.
+`DMABufferVector(Alazar.PageAlignedVector{UInt8}, bytes_buf, n_buf)`.
 
 The fields of a `DMABufferVector{S,T}` are:
 - `bytes_buf::Int`: The number of bytes per buffer. If there is more than one buffer it
   should be a multiple of Base.Mmap.PAGESIZE. This is enforced in the inner constructor.
 - `n_buf::Int`: The number of buffers to allocate.
-- `backing::T`: The page-aligned backing array. `S` is `Ptr{eltype(T)}`.
+- `backing::T`: The page-aligned backing array.
 
 This code may not support 32-bit systems.
 
