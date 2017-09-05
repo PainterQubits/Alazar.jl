@@ -84,10 +84,10 @@ const linux_libc = "libc.so.6"
 # Instead the library should be given the chance to load (if it hasn't already)
 # whenever Julia objects representing instruments are created.
 alazaropen() = begin
-    @static is_windows()? begin
+    @static is_windows() ? begin
         atsHandle = Libdl.dlopen(ats)
         atexit(()->Libdl.dlclose(atsHandle))
-    end : (@static is_linux()? begin
+    end : (@static is_linux() ? begin
         atsHandle = Libdl.dlopen(ats)
         libcHandle = Libdl.dlopen(linux_libc)
         atexit(()->begin

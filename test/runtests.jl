@@ -8,6 +8,7 @@ p = PageAlignedVector{Int}(512)
 @test eltype(p) == Int
 @test Integer(pointer(p)) % Base.Mmap.PAGESIZE == 0
 @test (p[:] = 1) == 1
+@test @inferred(p[1]) == 1
 @test all(p .== 1)
 @test length(p) == 512
 @test size(p) == (512,)
@@ -32,7 +33,10 @@ p = PageAlignedVector{Int}(512)
 @test_throws MethodError DMABufferVector(Array{Int}, 512, 1)
 
 dma = DMABufferVector(PageAlignedVector{Int}, Base.Mmap.PAGESIZE, 10)
+@test @inferred(DMABufferVector(PageAlignedVector{Int}, Base.Mmap.PAGESIZE, 10)) isa
+    DMABufferVector{Ptr{Int}, PageAlignedVector{Int}}
 @test eltype(dma) == Ptr{Int}
+@test @inferred(dma[1]) isa Ptr{Int}
 @test length(dma) == 10
 @test size(dma) == (10,)
 @test Base.IndexStyle(dma) == Base.IndexLinear()
