@@ -11,7 +11,7 @@ Adapted from the C and Python APIs by Andrew Keller (andrew.keller.09@gmail.com)
 ## Usage
 
 ```jl
-Pkg.clone("https://www.github.com/PainterQubits/Alazar.jl.git")
+Pkg.clone("https://github.com/PainterQubits/Alazar.jl.git")
 using Alazar
 ```
 
